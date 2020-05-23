@@ -6,7 +6,7 @@ import time
 import pandas as pd
 import matplotlib.pyplot as plt
 from tensorflow.keras.layers import LayerNormalization
-from project.Api.data_preprocessing import IncreaseScaler
+from Api.data_preprocessing import IncreaseScaler
 
 with tf.name_scope('tool'):
     # 图层归一化

@@ -1,13 +1,6 @@
 import tensorflow as tf
 from Api import img_io
 
-train_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\training_set"
-test_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\test_set"
-
-train_path_set = img_io.read_dir(train_path)
-test_path_set = img_io.read_dir(test_path)
-print(len(train_path_set))
-
 
 def mark_dataset(data_path_set):
     label_set = []
@@ -19,16 +12,12 @@ def mark_dataset(data_path_set):
     return data_path_set, label_set
 
 
-train_path_set, label_train = mark_dataset(train_path_set)
-test_path_set, label_test = mark_dataset(test_path_set)
-
-
-# 将image和label转为list格式数据，因为后边用到的的一些tensorflow函数接收的是list格式数据
+# 将image和label转为list格式数据，因为后边用到的一些tensorflow函数接收的是list格式数据
 # batch_size：每个batch要放多少张图片
 # capacity：一个队列最大多少
-def get_batch(image, label, image_size, batch_size, capacity):
+def get_batch(image_path, label, image_size, batch_size, capacity):
     # tf.cast()用来做类型转换
-    image = tf.cast(image, tf.string)  # 可变长度的字节数组.每一个张量元素都是一个字节数组
+    image = tf.cast(image_path, tf.string)  # 可变长度的字节数组.每一个张量元素都是一个字节数组
     label = tf.cast(label, tf.int32)
     # tf.train.slice_input_producer是一个tensor生成器
     # 作用是按照设定，每次从一个tensor列表中按顺序或者随机抽取出一个tensor放入文件名队列。
@@ -55,4 +44,17 @@ def get_batch(image, label, image_size, batch_size, capacity):
     image_batch = tf.cast(image_batch, tf.float32)  # 显示灰度图
     # print(label_batch) Tensor("Reshape:0", shape=(6,), dtype=int32)
     return image_batch, label_batch
+
+
+if __name__ == '__main__':
+    train_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\training_set"
+    test_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\test_set"
+    train_path_set = img_io.read_dir(train_path)
+    # test_path_set = img_io.read_dir(test_path)
+    print(len(train_path_set))
+
+    train_path_set, label_train = mark_dataset(train_path_set)
+    # test_path_set, label_test = mark_dataset(test_path_set)
+
+    image_batch, label_batch = get_batch(train_path_set, )
 

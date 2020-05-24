@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Api import img_io
+from Api import img_load
 
 
 def mark_dataset(data_path_set):
@@ -17,8 +17,12 @@ def preprocess(image_path, label_batch):
     image_path = tf.cast(image_path, tf.string)
     label_batch = tf.cast(label_batch, tf.int32)
 
+    print(1)
+
     # 读取图片
-    image_contents = tf.gfile.FastGFile(image_path, 'rb').read()
+    img = Image.open(img_file)
+    image_contents = np.array(img)
+    # image_contents = tf.gfile.FastGFile(image_path, 'rb').read()
 
     # step2：将图像解码，使用相同类型的图像
     image = tf.image.decode_jpeg(image_contents, channels=3)
@@ -39,14 +43,14 @@ def preprocess(image_path, label_batch):
 if __name__ == '__main__':
     train_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\training_set"
     test_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\test_set"
-    train_path_set = img_io.read_dir(train_path)
+    train_path_set = img_load.read_dir(train_path)
     # test_path_set = img_io.read_dir(test_path)
     print(len(train_path_set))
 
     train_path_set, label_train = mark_dataset(train_path_set)
     # test_path_set, label_test = mark_dataset(test_path_set)
 
-    dataset = tf.data.Dataset.from_tensor_slices((train_path_set, label_train)).shuffle(1000).map(preprocess)
+    dataset = tf.data.Dataset.from_tensor_slices((train_path_set, label_train)).shuffle(1000)
     dataset = dataset.batch(32, drop_remainder=True).prefetch(1)
     for image_batch, label_batch in dataset:
         print(image_batch)

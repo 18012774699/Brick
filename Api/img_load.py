@@ -24,10 +24,11 @@ def read_dir(search_path: str, file_type: list = [".png", ".jpg"]):
 
 
 if __name__ == '__main__':
-    test_path = r"D:\AI\dataset\PASCAL VOC\VOCtrainval_11-May-2012\VOCdevkit\VOC2012\SegmentationClass"
+    test_path = r"D:\AI\dataset\PASCAL VOC\SegmentationClass"
     test_set = read_dir(test_path)
-    # image = cv2.cvtColor(test_set[0], cv2.COLOR_BGR2RGB)
-    img = plt.imread(test_set[0])
+    img = cv2.imread(test_set[0])
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    # img = plt.imread(test_set[0])
 
     # img.astype(np.float32)    # for train
     # img.astype(np.uint8)      # for show

@@ -19,7 +19,7 @@ def search_file_to_copy(search_path: str, filter_list: list):
     for main_dir, subdir, file_name_list in os.walk(search_path):
         for filename in file_name_list:
             (file, extension) = os.path.splitext(filename)
-            if file in filter_list:
+            if file not in filter_list:
                 continue
             shutil.copyfile(main_dir + '/' + filename, copy_path + filename)
 

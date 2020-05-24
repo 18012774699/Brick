@@ -9,7 +9,7 @@ def match_extension(file_name: str, file_type: list) -> bool:
     return extension in file_type
 
 
-def read_dir_by_path(search_path: str, file_type: list = [".png", ".jpg"]):
+def read_dir(search_path: str, file_type: list = [".png", ".jpg"]):
     img_path_list = []
     for main_dir, subdir, file_name_list in os.walk(search_path):
         # print("main_dir:", main_dir)  # 当前主目录
@@ -25,7 +25,7 @@ def read_dir_by_path(search_path: str, file_type: list = [".png", ".jpg"]):
 
 if __name__ == '__main__':
     test_path = r"D:\AI\dataset\PASCAL VOC\VOCtrainval_11-May-2012\VOCdevkit\VOC2012\SegmentationClass"
-    test_set = read_dir_by_path(test_path)
+    test_set = read_dir(test_path)
     # image = cv2.cvtColor(test_set[0], cv2.COLOR_BGR2RGB)
     img = plt.imread(test_set[0])
 

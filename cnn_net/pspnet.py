@@ -1,5 +1,5 @@
 from tensorflow import keras
-from CNN.resnet101 import get_resnet101
+from cnn_net.resnet101 import get_resnet101
 
 
 def pspnet():

@@ -42,16 +42,16 @@ def conv_block(input_tensor, kernel_size, filters, strides=2):
     return x
 
 
-def resnet101(shape):
+def get_resnet101(shape):
     input_image = keras.layers.Input(shape=shape)
     # Stage 1
     x = keras.layers.ZeroPadding2D(padding=(3, 3))(input_image)  # 0填充
     # Height/2,Width/2,64
     x = keras.layers.Conv2D(64, 7, strides=2, use_bias=False)(x)
     x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation('relu')(x)
+    C1 = x = keras.layers.Activation('relu')(x)
     # Height/4,Width/4,64
-    C1 = x = keras.layers.MaxPooling2D(pool_size=3, strides=2)(x)
+    x = keras.layers.MaxPooling2D(pool_size=2, strides=2)(x)
     # Stage 2
     x = conv_block(x, 3, [64, 64, 256], strides=1)
     x = identity_block(x, 3, [64, 64, 256])
@@ -76,5 +76,3 @@ def resnet101(shape):
     # Height/32,Width/32,2048
     C5 = x = identity_block(x, 3, [32, 32, 2048])
     return [C1, C2, C3, C4, C5]
-
-# mobilenet

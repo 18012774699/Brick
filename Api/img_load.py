@@ -9,7 +9,7 @@ def match_extension(file_name: str, file_type: list) -> bool:
     return extension in file_type
 
 
-def read_dir(search_path: str, file_type: list = [".jpg"]):
+def read_dir_by_path(search_path: str, file_type: list = [".png", ".jpg"]):
     img_path_list = []
     for main_dir, subdir, file_name_list in os.walk(search_path):
         # print("main_dir:", main_dir)  # 当前主目录
@@ -23,9 +23,22 @@ def read_dir(search_path: str, file_type: list = [".jpg"]):
     return img_path_list
 
 
+def read_dir_by_name(search_path: str, file_type: list = [".png", ".jpg"]):
+    img_path_list = []
+    for main_dir, subdir, file_name_list in os.walk(search_path):
+        # print("main_dir:", main_dir)  # 当前主目录
+        # print("subdir:", subdir)  # 当前主目录下的所有目录
+        # print("file_name_list:", file_name_list)  # 当前主目录下的所有文件
+        for filename in file_name_list:
+            if not match_extension(filename, file_type):
+                continue
+            img_path_list.append(filename)
+    return img_path_list
+
+
 if __name__ == '__main__':
-    test_path = r"D:\AI\dataset\图像\dogs-cats-images\dataset\test_set"
-    test_set = read_dir(test_path)
+    test_path = r"D:\AI\dataset\PASCAL VOC\VOCtrainval_11-May-2012\VOCdevkit\VOC2012\SegmentationClass"
+    test_set = read_dir_by_path(test_path)
     # image = cv2.cvtColor(test_set[0], cv2.COLOR_BGR2RGB)
     img = plt.imread(test_set[0])
 

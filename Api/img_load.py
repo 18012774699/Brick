@@ -28,6 +28,7 @@ if __name__ == '__main__':
     test_set = read_dir(test_path)
     img = cv2.imread(test_set[0])
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (256, 256))
     # img = plt.imread(test_set[0])
 
     # img.astype(np.float32)    # for train

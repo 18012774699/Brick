@@ -20,7 +20,10 @@ def pspnet():
         UpSample.append(layer)
         # print(layer.shape)
     concat = keras.layers.concatenate(UpSample)     # (None, 256, 256, 640)
-    x = keras.layers.Conv2D(output_categories, 1, use_bias=False)(concat)
+    x = keras.layers.Conv2D(100, 1, use_bias=False)(concat)
+    x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.Activation('relu')(x)
+    x = keras.layers.Conv2D(output_categories, 1, use_bias=False)(x)
     x = keras.layers.BatchNormalization()(x)
     output = keras.layers.Activation('softmax')(x)  # (None, 256, 256, 21)
 
@@ -28,9 +31,10 @@ def pspnet():
     return model
 
 
-model = pspnet()
-print(model.summary())
-# model.compile(loss="mse", optimizer=keras.optimizers.SGD(lr=1e-3))
-# history = model.fit(X_train_A, y_train, epochs=20, validation_data=(X_valid_A, y_valid))
-# mse_test = model.evaluate(X_test_A, y_test)
-# y_pred = model.predict(X_new_A)
+if __name__ == '__main__':
+    model = pspnet()
+    print(model.summary())
+    # model.compile(loss="mse", optimizer=keras.optimizers.SGD(lr=1e-3))
+    # history = model.fit(X_train_A, y_train, epochs=20, validation_data=(X_valid_A, y_valid))
+    # mse_test = model.evaluate(X_test_A, y_test)
+    # y_pred = model.predict(X_new_A)

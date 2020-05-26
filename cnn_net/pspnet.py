@@ -21,6 +21,7 @@ def pspnet(input_shape=(224, 224, 3)):
     concat = keras.layers.concatenate(UpSample)  # (None, 256, 256, 640)
     x = keras.layers.Conv2D(100, 1, use_bias=False)(concat)
     x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.Dropout(0.5)(x)
     x = keras.layers.Activation('relu')(x)
     x = keras.layers.Conv2D(output_categories, 1, use_bias=False)(x)
     x = keras.layers.BatchNormalization()(x)
@@ -33,7 +34,3 @@ def pspnet(input_shape=(224, 224, 3)):
 if __name__ == '__main__':
     model = pspnet(input_shape=(224, 224, 3))
     print(model.summary())
-    # model.compile(loss="mse", optimizer=keras.optimizers.SGD(lr=1e-3))
-    # history = model.fit(X_train_A, y_train, epochs=20, validation_data=(X_valid_A, y_valid))
-    # mse_test = model.evaluate(X_test_A, y_test)
-    # y_pred = model.predict(X_new_A)

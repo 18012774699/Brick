@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from Api import img_load
 from cnn_net.pspnet import pspnet
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 TRAIN_SIZE = 224
 image_org = []
@@ -147,8 +147,8 @@ with tf.name_scope('train'):
 
     s = 20 * len(X_train) // batch_size
     learning_rate = keras.optimizers.schedules.ExponentialDecay(lr, s, 0.1)
-    # optimizer = keras.optimizers.Adam(learning_rate, clipvalue=1.0)
-    optimizer = keras.optimizers.Adam(learning_rate)
+    optimizer = keras.optimizers.Adam(learning_rate, clipvalue=1.0)
+    # optimizer = keras.optimizers.Adam(learning_rate)
 
     model = pspnet(input_shape=(TRAIN_SIZE, TRAIN_SIZE, 3))
     # model = keras.models.load_model("my_keras_model.h5")
@@ -166,7 +166,17 @@ with tf.name_scope('train'):
 
 with tf.name_scope('visualization'):
     # loss_test = model.evaluate(X_test, Y_test)
-    # y_pred = model.predict(X_test[0])
-    print('\nvisualization finished!\n====================================')
 
-# mobilenet
+    # 原图
+    plt.imshow(X_test[0])
+    plt.show()
+    # 标签
+    y_test = label_to_pixel(Y_test[0])
+    plt.imshow(y_test)
+    plt.show()
+    # 预测值
+    y_pred = np.argmax(model.predict(X_test[:2]), axis=3)
+    y_pred = label_to_pixel(y_pred[0])
+    plt.imshow(y_pred)
+    plt.show()
+    print('\nvisualization finished!\n====================================')

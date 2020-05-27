@@ -24,3 +24,10 @@ a = tf.ones([3, 2])
 b = tf.fill([2, 3], 3.)
 print(tf.matmul(a, b))
 print('====================tf.matmul====================\n')
+
+# 自减、自加
+w = tf.Variable(4)
+w.assign_add(1)
+w.assign_sub(2)
+print(w)
+print('====================assign_add====================\n')

@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 # 强转和min、max
@@ -10,7 +9,6 @@ print(tf.reduce_max(b), tf.reduce_min(b))
 print('====================tf.reduce_max====================\n')
 
 '''
-     # 经纬度0、1
      -----------------------> axis=1
   |  |--------|--------|--------|
   |  |        |  col0  |  col1  |
@@ -33,9 +31,3 @@ print('====================tf.reduce_mean====================\n')
 # 下面为神经网路初始化参数的代码
 w = tf.Variable(tf.random.normal([2, 2], mean=0, stddev=1))
 print('====================tf.Variable====================\n')
-
-test = np.array([[1, 2, 3], [2, 3, 4], [5, 4, 3], [8, 7, 2]])
-print(test)
-print(tf.argmax(test, axis=0))
-print(tf.argmax(test, axis=1))
-print('====================tf.argmax====================\n')

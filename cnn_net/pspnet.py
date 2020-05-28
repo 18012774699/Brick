@@ -1,35 +1,42 @@
+import tensorflow as tf
 from tensorflow import keras
-from cnn_net.resnet101 import get_resnet101
+from cnn_net.res_block import ResNet
 
 
-def pspnet(input_shape=(224, 224, 3)):
+def pyramid_pooling_block(input, pool_sizes):
+    # print(input.shape)
+    h = input.shape[1]
+    w = input.shape[2]
+
+    concat_list = [input]
+    for pool_size in pool_sizes:
+        x = keras.layers.AveragePooling2D(pool_size=pool_size, strides=pool_size)(input)
+        print(x.shape)
+        x = keras.layers.Conv2D(64, 1)(x)
+        x = keras.layers.Lambda(lambda x: tf.image.resize(x, (h, w)))(x)
+        concat_list.append(x)
+    return keras.layers.concatenate(concat_list)
+
+
+def pspnet(num_classes, input_shape=(224, 224, 3)):
     image_input = keras.layers.Input(shape=input_shape)
-    output_categories = 21
-    layers = get_resnet101(image_input)
+    x = ResNet(image_input)
 
-    UpSample = []
-    for layer in layers:
-        layer = keras.layers.Conv2D(128, 1, use_bias=False)(layer)
-        layer = keras.layers.BatchNormalization()(layer)
-        layer = keras.layers.Activation('relu')(layer)
-        print(layer.shape)
-        if layer.shape[1] != input_shape[0]:
-            size = input_shape[0] / layer.shape[1]
-            layer = keras.layers.UpSampling2D(size=(size, size))(layer)
-        UpSample.append(layer)
-        # print(layer.shape)
-    concat = keras.layers.concatenate(UpSample)  # (None, 256, 256, 640)
-    x = keras.layers.Conv2D(100, 3, padding='same', use_bias=False)(concat)
+    x = pyramid_pooling_block(x, [2, 4, 8, 16])
+    print(x.shape)  # (None, 112, 112, 512)
+
+    x = keras.layers.Conv2D(64, 3, padding='same', use_bias=False)(x)
     x = keras.layers.BatchNormalization()(x)
     x = keras.layers.Activation('relu')(x)
     x = keras.layers.Dropout(0.2)(x)
-    x = keras.layers.Conv2D(output_categories, 1)(x)
-    output = keras.layers.Activation('softmax')(x)  # (None, 256, 256, 21)
 
+    x = keras.layers.Conv2D(num_classes, kernel_size=1)(x)
+    x = keras.layers.Conv2DTranspose(num_classes, kernel_size=(16, 16), strides=(2, 2), padding='same')(x)
+    output = keras.layers.Activation('softmax')(x)  # (None, 224, 224, 21)
     model = keras.Model(inputs=[image_input], outputs=[output])
     return model
 
 
 if __name__ == '__main__':
-    model = pspnet(input_shape=(224, 224, 3))
+    model = pspnet(21, input_shape=(512, 384, 3))
     print(model.summary())

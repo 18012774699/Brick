@@ -42,36 +42,16 @@ def conv_block(input_tensor, kernel_size, filters, strides=2):
     return x
 
 
-def get_resnet101(image):
-    # Stage 1
-    x = keras.layers.ZeroPadding2D(padding=(3, 3))(image)  # 0填充
-    # Height/2,Width/2,64
-    x = keras.layers.Conv2D(64, 7, strides=2, use_bias=False)(x)
+def ResNet(image):
+    x = keras.layers.ZeroPadding2D((3, 3))(image)
+    x = keras.layers.Conv2D(64, (7, 7))(x)
     x = keras.layers.BatchNormalization()(x)
-    C1 = x = keras.layers.Activation('relu')(x)
-    # Height/4,Width/4,64
-    x = keras.layers.MaxPooling2D(pool_size=2, strides=2)(x)
-    # Stage 2
-    x = conv_block(x, 3, [64, 64, 256], strides=2)
+    x = keras.layers.Activation('relu')(x)
+
+    x = conv_block(x, 3, [64, 64, 256])
     x = identity_block(x, 3, [64, 64, 256])
-    # Height/4,Width/4,256
-    C2 = x = identity_block(x, 3, [64, 64, 256])
-    # Stage 3
-    x = conv_block(x, 3, [128, 128, 512])
-    x = identity_block(x, 3, [128, 128, 512])
-    x = identity_block(x, 3, [128, 128, 512])
-    # Height/8,Width/8,512
-    C3 = x = identity_block(x, 3, [128, 128, 512])
-    # Stage 4
-    x = conv_block(x, 3, [64, 64, 1024])
-    block_count = 22
-    for i in range(block_count):
-        x = identity_block(x, 3, [64, 64, 1024])
-    # Height/16,Width/16,1024
-    C4 = x
-    # Stage 5
-    x = conv_block(x, 3, [32, 32, 2048])
-    x = identity_block(x, 3, [32, 32, 2048])
-    # Height/32,Width/32,2048
-    C5 = x = identity_block(x, 3, [32, 32, 2048])
-    return [C1, C2, C3, C4, C5]
+    x = identity_block(x, 3, [64, 64, 256])
+    x = identity_block(x, 3, [64, 64, 256])
+    x = identity_block(x, 3, [64, 64, 256])
+    x = identity_block(x, 3, [64, 64, 256])
+    return x

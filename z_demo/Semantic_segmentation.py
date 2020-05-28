@@ -7,11 +7,13 @@ import time
 import matplotlib.pyplot as plt
 from Api import img_load
 from cnn_net.pspnet import pspnet
-
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-TRAIN_SIZE = 224
+# IMG_HEIGHT = 512
+# IMG_WEIGHT = 384
+IMG_WEIGHT = 224
+
 image_org = []
 ground_truth = []
 '''
@@ -37,7 +39,7 @@ label_map_to_pixel[0] = (0, 0, 0)
 
 with tf.name_scope('tool'):
     # 随机裁剪，数据增强
-    def rand_crop(image, label, size=(TRAIN_SIZE, TRAIN_SIZE)):
+    def rand_crop(image, label, size=(IMG_WEIGHT, IMG_WEIGHT)):
         height1 = random.randint(0, image.shape[0] - size[0])
         width1 = random.randint(0, image.shape[1] - size[1])
         height2 = height1 + size[0]
@@ -46,8 +48,8 @@ with tf.name_scope('tool'):
         image = image[height1:height2, width1:width2]
         label = label[height1:height2, width1:width2]
 
-        assert image.shape == (TRAIN_SIZE, TRAIN_SIZE, 3)
-        assert label.shape == (TRAIN_SIZE, TRAIN_SIZE, 3)
+        assert image.shape == (IMG_WEIGHT, IMG_WEIGHT, 3)
+        assert label.shape == (IMG_WEIGHT, IMG_WEIGHT, 3)
         return image, label
 
     # (224, 224, 3) => (224, 224,)
@@ -62,7 +64,7 @@ with tf.name_scope('tool'):
 
     # (224, 224,) => (224, 224, 3)
     def label_to_pixel(label):
-        label = label.reshape(TRAIN_SIZE, TRAIN_SIZE, 1)
+        label = label.reshape(IMG_WEIGHT, IMG_WEIGHT, 1)
         label = np.repeat(label, 3, axis=2)
         for i in range(label.shape[0]):
             for j in range(label.shape[1]):
@@ -88,20 +90,28 @@ with tf.name_scope('img_preprocess'):
     # 加载图片，过滤尺寸太小的图片
     for index in range(len(image_org_path)):
         img = cv2.imread(image_org_path[index])
+        # 读图
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        if min(img.shape[0], img.shape[1]) < TRAIN_SIZE:
-            continue
         image_org.append(img)  # image_org
+        # resize
+        # img = cv2.resize(img, (IMG_WEIGHT, IMG_WEIGHT), interpolation=cv2.INTER_NEAREST)
+        # cv2.imwrite(image_org_path[index], img)
+
         img = cv2.imread(ground_truth_path[index])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         ground_truth.append(img)  # ground_truth
 
+        # img = cv2.resize(img, (IMG_WEIGHT, IMG_WEIGHT), interpolation=cv2.INTER_NEAREST)
+        # cv2.imwrite(ground_truth_path[index], img)
+
     # 随机裁剪，数据增强
-    for index in range(len(ground_truth)):
-        image_org[index], ground_truth[index] = rand_crop(image_org[index], ground_truth[index])
+    # for index in range(len(ground_truth)):
+    #     image_org[index], ground_truth[index] = rand_crop(image_org[index], ground_truth[index])
 
     # ground_truth像素值转分类标签（用于训练）
     for index in range(len(ground_truth)):
+        # plt.imshow(ground_truth[index])
+        # plt.show()
         ground_truth[index] = pixel_to_label(ground_truth[index])
 
     image_org = np.array(image_org)
@@ -136,6 +146,15 @@ with tf.name_scope('data_preprocess'):
     print(Y_train.shape)
     print('\ndata_preprocess finished!\n====================================')
 
+with tf.name_scope('data_pre_look'):
+    # plt.imshow(X_train[0].astype(np.uint8))
+    # plt.show()
+    # y_train = label_to_pixel(Y_train[0])
+    # plt.imshow(y_train)
+    # plt.show()
+    pass
+
+
 with tf.name_scope('train'):
     batch_size = 4
     lr = 0.01
@@ -145,16 +164,19 @@ with tf.name_scope('train'):
     early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     save_model = keras.callbacks.ModelCheckpoint("my_keras_model.h5", save_best_only=True)
 
+    def dice_coef(y_true, y_pred):
+        return (2. * keras.sum(y_true * y_pred) + 1.) / (keras.sum(y_true) + keras.sum(y_pred) + 1.)
+
     s = 20 * len(X_train) // batch_size
     learning_rate = keras.optimizers.schedules.ExponentialDecay(lr, s, 0.1)
     optimizer = keras.optimizers.Adam(learning_rate, clipvalue=1.0)
     # optimizer = keras.optimizers.Adam(learning_rate)
 
-    model = pspnet(input_shape=(TRAIN_SIZE, TRAIN_SIZE, 3))
+    model = pspnet(num_classes=21, input_shape=(IMG_WEIGHT, IMG_WEIGHT, 3))
     # model = keras.models.load_model("my_keras_model.h5")
     # model.load_weights("my_keras_model.h5")
 
-    # print(model.summary())
+    print(model.summary())
     model.compile(loss=loss_func, optimizer=optimizer, metrics=["accuracy"])
 
     start = time.time()
@@ -168,7 +190,7 @@ with tf.name_scope('visualization'):
     # loss_test = model.evaluate(X_test, Y_test)
 
     # 原图
-    plt.imshow(X_test[0])
+    plt.imshow(X_test[0].astype(np.uint8))
     plt.show()
     # 标签
     y_test = label_to_pixel(Y_test[0])
@@ -177,6 +199,6 @@ with tf.name_scope('visualization'):
     # 预测值
     y_pred = np.argmax(model.predict(X_test[:2]), axis=3)
     y_pred = label_to_pixel(y_pred[0])
-    plt.imshow(y_pred)
+    plt.imshow(y_pred.astype(np.uint8))
     plt.show()
     print('\nvisualization finished!\n====================================')

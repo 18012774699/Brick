@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
+import tensorflow.keras.backend as K
 import cv2
 import random
 import numpy as np
@@ -64,6 +65,7 @@ with tf.name_scope('tool'):
 
     # (224, 224,) => (224, 224, 3)
     def label_to_pixel(label):
+        label = label.astype(np.uint8)
         label = label.reshape(IMG_WEIGHT, IMG_WEIGHT, 1)
         label = np.repeat(label, 3, axis=2)
         for i in range(label.shape[0]):
@@ -146,13 +148,21 @@ with tf.name_scope('data_preprocess'):
     print(Y_train.shape)
     print('\ndata_preprocess finished!\n====================================')
 
-with tf.name_scope('data_pre_look'):
-    # plt.imshow(X_train[0].astype(np.uint8))
-    # plt.show()
-    # y_train = label_to_pixel(Y_train[0])
-    # plt.imshow(y_train)
-    # plt.show()
-    pass
+with tf.name_scope('loss_and_metrics'):
+    def focal_loss(y_true, y_pred):
+        gamma = 0.75
+        alpha = 0.25
+        pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
+        pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
+
+        pt_1 = K.clip(pt_1, 1e-3, .999)
+        pt_0 = K.clip(pt_0, 1e-3, .999)
+
+        return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.sum(
+            (1 - alpha) * K.pow(pt_0, gamma) * K.log(1. - pt_0))
+
+    def dice_coef(y_true, y_pred):
+        return (2. * K.sum(y_true * y_pred) + 1.) / (K.sum(y_true) + K.sum(y_pred) + 1.)
 
 
 with tf.name_scope('train'):
@@ -164,9 +174,6 @@ with tf.name_scope('train'):
     early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     save_model = keras.callbacks.ModelCheckpoint("my_keras_model.h5", save_best_only=True)
 
-    def dice_coef(y_true, y_pred):
-        return (2. * keras.sum(y_true * y_pred) + 1.) / (keras.sum(y_true) + keras.sum(y_pred) + 1.)
-
     s = 20 * len(X_train) // batch_size
     learning_rate = keras.optimizers.schedules.ExponentialDecay(lr, s, 0.1)
     optimizer = keras.optimizers.Adam(learning_rate, clipvalue=1.0)
@@ -177,7 +184,7 @@ with tf.name_scope('train'):
     # model.load_weights("my_keras_model.h5")
 
     print(model.summary())
-    model.compile(loss=loss_func, optimizer=optimizer, metrics=["accuracy"])
+    model.compile(loss=focal_loss, optimizer=optimizer, metrics=["sparse_categorical_accuracy"])
 
     start = time.time()
     history = model.fit(X_train, Y_train, validation_data=(X_valid, Y_valid),
@@ -190,15 +197,17 @@ with tf.name_scope('visualization'):
     # loss_test = model.evaluate(X_test, Y_test)
 
     # 原图
-    plt.imshow(X_test[0].astype(np.uint8))
+    temp = (X_test[0]*255).astype(np.uint8)
+    plt.imshow(temp)
     plt.show()
     # 标签
     y_test = label_to_pixel(Y_test[0])
     plt.imshow(y_test)
     plt.show()
     # 预测值
-    y_pred = np.argmax(model.predict(X_test[:2]), axis=3)
+    temp = model.predict(X_test[:2])
+    y_pred = np.argmax(temp, axis=3)
     y_pred = label_to_pixel(y_pred[0])
-    plt.imshow(y_pred.astype(np.uint8))
+    plt.imshow(y_pred)
     plt.show()
     print('\nvisualization finished!\n====================================')

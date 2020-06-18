@@ -31,11 +31,11 @@ with tf.name_scope('tool'):
 
 
 with tf.name_scope('img_preprocess'):
-    label_path = r"D:\Friedrich\dataset\Kaggle\aptos2019-blindness-detection\train.csv"
+    label_path = r"E:\dataset\Kaggle\aptos2019-blindness-detection\train.csv"
     label_data = pd.read_csv(label_path)
     image_name = label_data["id_code"].values
     label = label_data["diagnosis"].values
-    image_path = r"D:\Friedrich\dataset\Kaggle\aptos2019-blindness-detection\train_images/" + image_name + ".png"
+    image_path = r"E:\dataset\Kaggle\aptos2019-blindness-detection\train_images/" + image_name + ".png"
 
     # 加载图片，过滤尺寸太小的图片
     for index in range(len(image_path)):
@@ -122,7 +122,7 @@ with tf.name_scope('train'):
 
     model = keras.Model(inputs=[image_input], outputs=[output])
     # model = keras.models.load_model("my_keras_model.h5")
-    # model.load_weights("my_keras_model.h5")
+    model.load_weights("my_keras_model.h5")
 
     print(model.summary())
     model.compile(loss=loss_func, optimizer=optimizer, metrics=["accuracy"])

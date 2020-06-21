@@ -14,25 +14,33 @@ tf.random.set_seed(42)
 np.random.seed(42)
 env.seed(42)
 
-for _ in range(1000):
-    env.render()
-    time.sleep(0.05)
-    # 随机选择一个动作
-    action = env.action_space.sample()
-    next_state, reward, done, info = env.step(action)
+# for _ in range(1000):
+#     env.render()
+#     time.sleep(0.05)
+#     # 随机选择一个动作
+#     action = env.action_space.sample()
+#     next_state, reward, done, info = env.step(action)
 
+input_shape = env.observation_space.shape  # 观测数据
+n_outputs = env.action_space.n  # 可选动作
 
-
-input_shape = [4]  # 观测数据
-n_outputs = 2  # 可选动作
-
-replay_memory = deque(maxlen=2000)
+replay_memory = deque(maxlen=20000)
+# activation = keras.layers.LeakyReLU(0.2)
+activation = "relu"
 
 model = keras.models.Sequential([
-    keras.layers.Dense(32, activation="elu", input_shape=[4]),
-    keras.layers.Dense(32, activation="elu"),
+    keras.layers.Conv2D(64, kernel_size=7, strides=2, padding="same", activation=activation,
+                        input_shape=input_shape),
+    keras.layers.MaxPooling2D(2),
+    keras.layers.Conv2D(128, kernel_size=3, padding="same", activation=activation),
+    keras.layers.Conv2D(128, kernel_size=3, padding="same", activation=activation),
+    keras.layers.MaxPooling2D(2),
+    keras.layers.Flatten(),
+    keras.layers.Dense(64, activation=activation),
+    keras.layers.Dense(32, activation=activation),
     keras.layers.Dense(n_outputs)
 ])
+print(model.summary())
 
 
 # ε-贪婪策略

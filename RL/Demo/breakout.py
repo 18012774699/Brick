@@ -1,9 +1,13 @@
+import os
 import gym
+import random
+import numpy as np
 import time
+from collections import deque
 import tensorflow as tf
 from tensorflow import keras
-import numpy as np
-from collections import deque
+from tensorflow.keras.optimizers import Adam
+from tqdm import tqdm
 
 # 声明使用的环境
 env = gym.make("Breakout-v0")
@@ -14,115 +18,132 @@ tf.random.set_seed(42)
 np.random.seed(42)
 env.seed(42)
 
-# for _ in range(1000):
-#     env.render()
-#     time.sleep(0.05)
-#     # 随机选择一个动作
-#     action = env.action_space.sample()
-#     next_state, reward, done, info = env.step(action)
 
-input_shape = env.observation_space.shape  # 观测数据
-n_outputs = env.action_space.n  # 可选动作
+class DQNAgent:
+    def __init__(self, model, discount_rate=0.99, deque_maxlen=5000, update_frequency=50):
+        self.discount_rate = discount_rate
+        self.update_frequency = update_frequency
 
-replay_memory = deque(maxlen=20000)
-# activation = keras.layers.LeakyReLU(0.2)
-activation = "relu"
+        self.model = model
+        self.target_model = keras.models.clone_model(self.model)
+        self.target_model.set_weights(self.model.get_weights())
+        self.optimizer = Adam(lr=0.01)
+        self.loss_fn = keras.losses.Huber()
 
-model = keras.models.Sequential([
-    keras.layers.Conv2D(64, kernel_size=7, strides=2, padding="same", activation=activation,
-                        input_shape=input_shape),
-    keras.layers.MaxPooling2D(2),
-    keras.layers.Conv2D(128, kernel_size=3, padding="same", activation=activation),
-    keras.layers.Conv2D(128, kernel_size=3, padding="same", activation=activation),
-    keras.layers.MaxPooling2D(2),
-    keras.layers.Flatten(),
-    keras.layers.Dense(64, activation=activation),
-    keras.layers.Dense(32, activation=activation),
-    keras.layers.Dense(n_outputs)
-])
-print(model.summary())
+        self.replay_memory = deque(maxlen=deque_maxlen)
+        self.target_update_counter = 0
 
+    def training_step(self, min_replay_memory_size=1000, batch_size=32, soft_update=False):
+        if len(self.replay_memory) < min_replay_memory_size:
+            return
 
-# ε-贪婪策略
-def epsilon_greedy_policy(state, epsilon=0):
-    if np.random.rand() < epsilon:
-        return np.random.randint(2)
-    else:
-        Q_values = model.predict(state[np.newaxis])
-        return np.argmax(Q_values[0])
+        batch_experiences = random.sample(self.replay_memory, batch_size)
+        states, actions, rewards, next_states, dones = [
+            np.array([experience[field_index] for experience in batch_experiences])
+            for field_index in range(5)]
 
+        next_Q_values = self.model.predict(next_states)
+        best_next_actions = np.argmax(next_Q_values, axis=1)
+        next_mask = tf.one_hot(best_next_actions, self.model.output.shape[1]).numpy()
+        next_best_Q_values = (self.target_model.predict(next_states) * next_mask).sum(axis=1)
+        target_Q_values = (rewards + (1 - dones) * self.discount_rate * next_best_Q_values)
+        target_Q_values = target_Q_values.reshape(-1, 1)
+        mask = tf.one_hot(actions, self.model.output.shape[1])
+        with tf.GradientTape() as tape:
+            all_Q_values = self.model(states)
+            Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
+            loss = tf.reduce_mean(self.loss_fn(target_Q_values, Q_values))
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
-# 每个经验包含五个元素：状态，智能体选择的动作，奖励，下一个状态，一个知识是否结束的布尔值（done）。
-# 需要一个小函数从接力缓存随机采样。返回的是五个NumPy数组，对应五个经验
-def sample_experiences(batch_size):
-    indices = np.random.randint(len(replay_memory), size=batch_size)
-    batch = [replay_memory[index] for index in indices]
-    states, actions, rewards, next_states, dones = [
-        np.array([experience[field_index] for experience in batch])
-        for field_index in range(5)]
-    return states, actions, rewards, next_states, dones
+        self.target_update_counter += 1
+        if self.target_update_counter > self.update_frequency:
+            self.target_update_counter = 0
+            # 更新目标模型
+            if not soft_update:
+                self.target_model.set_weights(self.model.get_weights())
+            else:  # 软更新方式
+                target_weights = self.target_model.get_weights()
+                online_weights = self.model.get_weights()
+                for index in range(len(target_weights)):
+                    target_weights[index] = 0.99 * target_weights[index] + 0.01 * online_weights[index]
+                self.target_model.set_weights(target_weights)
 
-
-# 使用ε-贪婪策略的单次玩游戏函数，然后将结果经验存储在replay_buffer中
-def play_one_step(env, state, epsilon):
-    action = epsilon_greedy_policy(state, epsilon)
-    next_state, reward, done, info = env.step(action)
-    replay_memory.append((state, action, reward, next_state, done))
-    return next_state, reward, done, info
-
-
-# 拷贝在线模型，为目标模型
-target = keras.models.clone_model(model)
-target.set_weights(model.get_weights())
-
-batch_size = 32
-discount_rate = 0.95
-optimizer = keras.optimizers.Adam(lr=1e-3)
-loss_fn = keras.losses.Huber()
+    def epsilon_greedy_policy(self, state, epsilon=0):
+        if np.random.rand() < epsilon:
+            # action = env.action_space.sample()
+            return np.random.randint(self.model.output.shape[1])  # 动作个数
+        else:
+            Q_values = self.model.predict(state[np.newaxis])
+            return np.argmax(Q_values[0])
 
 
-def training_step(batch_size):
-    experiences = sample_experiences(batch_size)
-    states, actions, rewards, next_states, dones = experiences
-    next_Q_values = model.predict(next_states)
-    best_next_actions = np.argmax(next_Q_values, axis=1)
-    next_mask = tf.one_hot(best_next_actions, n_outputs).numpy()
-    next_best_Q_values = (target.predict(next_states) * next_mask).sum(axis=1)
-    target_Q_values = (rewards + (1 - dones) * discount_rate * next_best_Q_values).reshape(-1, 1)
-    mask = tf.one_hot(actions, n_outputs)
-    with tf.GradientTape() as tape:
-        all_Q_values = model(states)
-        Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
-        loss = tf.reduce_mean(loss_fn(target_Q_values, Q_values))
-    grads = tape.gradient(loss, model.trainable_variables)
-    optimizer.apply_gradients(zip(grads, model.trainable_variables))
+def create_model(input_shape, action_num):
+    input = keras.layers.Input(shape=input_shape)
+
+    x = keras.layers.Lambda(lambda image: tf.cast(image, np.float32) / 255)(input)
+
+    x = keras.layers.Conv2D(64, 7, activation="relu", padding="same")(x)
+    x = keras.layers.AveragePooling2D(pool_size=(5, 5), strides=(3, 3), padding='same')(x)
+    x = keras.layers.Conv2D(64, 3, activation="relu", padding="same")(x)
+    x = keras.layers.AveragePooling2D(pool_size=(5, 5), strides=(3, 3), padding='same')(x)
+    x = keras.layers.Conv2D(64, 3, activation="relu", padding="same")(x)
+    x = keras.layers.GlobalAvgPool2D()(x)
+
+    output = keras.layers.Dense(action_num)(x)
+
+    model = keras.Model(inputs=[input], outputs=[output])
+    return model
 
 
-rewards = []
-best_score = 0
+if __name__ == "__main__":
+    if not os.path.isdir("./models"):
+        os.makedirs("./models")
 
-for episode in range(600):
-    obs = env.reset()
-    for step in range(200):
-        epsilon = max(1 - episode / 500, 0.01)
-        obs, reward, done, info = play_one_step(env, obs, epsilon)
-        if done:
-            break
-    rewards.append(step)
-    if step > best_score:
-        best_weights = model.get_weights()
-        best_score = step
-    print("\rEpisode: {}, Steps: {}, eps: {:.3f}".format(episode, step + 1, epsilon), end="")
-    if episode > 50:
-        training_step(batch_size)
-    if episode % 50 == 0:
-        target.set_weights(model.get_weights())
-    # Alternatively, you can do soft updates at each step:
-    # if episode > 50:
-    # target_weights = target.get_weights()
-    # online_weights = model.get_weights()
-    # for index in range(len(target_weights)):
-    #    target_weights[index] = 0.99 * target_weights[index] + 0.01 * online_weights[index]
-    # target.set_weights(target_weights)
+    action_num = env.action_space.n
+    batch_size = 8
 
-model.set_weights(best_weights)
+    model = create_model(input_shape=env.observation_space.shape, action_num=action_num)
+    # print(model.summary())
+    # model.load_weights(f'models/-5400.50avg_0.28epsilon_50s run_seconds.h5')
+
+    agent = DQNAgent(model, discount_rate=0.99, deque_maxlen=5000)
+
+    EPISODES = 1000
+    best_score = -np.inf
+    # best_score = -227
+    max_epsilon = 0.9
+    total_rewards_list = []
+
+    for episode in tqdm(range(EPISODES+1), ascii=True, unit="episodes"):
+        state = env.reset()
+        episode_reward = 0
+        done = False
+
+        while True:
+            env.render()
+            epsilon = max(max_epsilon - episode / 500, 0.1)
+            action = agent.epsilon_greedy_policy(state, epsilon)
+            new_state, reward, done, _ = env.step(action)
+            agent.replay_memory.append((state, action, reward, new_state, done))
+            state = new_state
+            episode_reward += reward
+
+            if done:
+                break
+
+        total_rewards_list.append(episode_reward)
+        if episode % 10 == 0:
+            average_reward = sum(total_rewards_list) / len(total_rewards_list)
+
+            if average_reward > best_score:
+                best_score = average_reward
+                min_reward = min(total_rewards_list)
+                max_reward = max(total_rewards_list)
+
+                agent.model.save(f'models/{average_reward:.2f}avg_{epsilon:.2f}epsilon.h5')
+                print(f"Save model by {average_reward:_>7.2f}avg__{max_reward:_>7.2f}max__{min_reward:_>7.2f}min")
+
+            total_rewards_list = []
+
+        agent.training_step(batch_size=batch_size)
